@@ -24,7 +24,9 @@ Follow steps in https://developers.google.com/webmaster-tools/search-console-api
 
 Save the `client-secrets.json` file in your local directory.
 
-# Usage
+# Using it
+
+## Initial call
 
 `python3 sc-to-mqtt.py`
 
@@ -61,6 +63,14 @@ mqtt_prefix: This is the prefix used for MQTT topics.
 If you use Home Assistant auto-discovery, make sure it matches your auto-discovery topic prefix. 
 
 sites: The sites to export. They must be verified in Search Console.
+
+## Command line options
+
+--noconfig: Don't send config data for sensors
+
+--remove: Send empty config data to remove sensors from Home Assistant
+
+--config=file.ini: Use this configuration file instead of sc-to-mqtt.ini
 
 ## Topics sent
 
