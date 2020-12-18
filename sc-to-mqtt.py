@@ -24,7 +24,7 @@ import argparse
 import sys
 import time
 
-CONFIG_FILE = 'search-to-mqtt.ini'
+CONFIG_FILE = 'sc-to-mqtt.ini'
 
 argparser = argparse.ArgumentParser(add_help=False)
 argparser.add_argument('--noconfig', help="Don't send sensor config data", action="store_true")
