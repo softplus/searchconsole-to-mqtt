@@ -30,6 +30,7 @@ argparser = argparse.ArgumentParser(add_help=False)
 argparser.add_argument('--noconfig', help="Don't send sensor config data", action="store_true")
 argparser.add_argument('--remove', help="Remove sensors, don't send data", action="store_true")
 argparser.add_argument('--config', default=CONFIG_FILE, help="Configuration file")
+argparser.add_argument('--add7', help="Add data from 7 days ago", action="store_true")
 
 def url_to_id(url):
     # Replace cruft from URL to make a MQTT topic ID
@@ -59,7 +60,7 @@ def setup_mqtt(config):
     return client
 
 
-def config_sensors(client, sites, config):
+def config_sensors(client, sites, config, add_7_day):
     for site in sites:
         siteid = url_to_id(site)
         siteurl = site
@@ -70,6 +71,9 @@ def config_sensors(client, sites, config):
         fields = [["Data age", "age", "hrs"], 
                 ["Impressions", "impressions", "x"], 
                 ["Clicks", "clicks", "x"]]
+        if add_7_day:
+            fields.append(["Impressions-7", "impressions7", "x"])
+            fields.append(["Clicks-7", "clicks7", "x"])
         for f in fields:
             conf.update( {"name": f[0], 
                 "unit_of_measurement": f[2], 
@@ -78,19 +82,18 @@ def config_sensors(client, sites, config):
             client.publish(topicid + f[1] + "/config", json.dumps(conf))
 
 
-
-def do_it(service, config, sites, configure_mqtt=True, remove_sensors=False):
+def do_it(service, config, sites, configure_mqtt=True, remove_sensors=False, add_7_day=True):
     client = setup_mqtt(config)
     client.connect(config.get("config", "mqtt_broker"), int(config.get("config", "mqtt_port")))
     if remove_sensors:
         print("Removing sensors...")
         for site in sites:
             siteid = url_to_id(site)
-            for sensor in ["clicks", "impressions", "age", "imps", "clx"]:
+            for sensor in ["clicks", "impressions", "age", "imps", "clx", "impressions7", "clicks7"]:
                 client.publish(config.get("config", "mqtt_prefix") + siteid + sensor + "/config", "")
             client.publish(config.get("config", "mqtt_prefix") + siteid + "/config", "")
         return
-    if configure_mqtt: config_sensors(client, sites, config)
+    if configure_mqtt: config_sensors(client, sites, config, add_7_day)
 
     # request data from last 7 days; use last entry
     start_date = (datetime.datetime.utcnow() + datetime.timedelta(days=-7)).strftime("%Y-%m-%d")
@@ -119,6 +122,9 @@ def do_it(service, config, sites, configure_mqtt=True, remove_sensors=False):
             data_age_hrs = round(data_age.days*24 + data_age.seconds/(60*60), 1)
 
             data = {"impressions": row["impressions"], "clicks": row["clicks"], "age": data_age_hrs}
+            if add_7_day:
+                data["impressions7"] = response["rows"][0]["impressions"]
+                data["clicks7"] = response["rows"][0]["clicks"]
             topicid = config.get("config", "mqtt_prefix") + url_to_id(site)
             client.publish(topicid + '/state', json.dumps(data))
 
@@ -158,7 +164,7 @@ def main(argv):
 
     sites = state.get("config", "sites").split(",")
     sites = [x.strip() for x in sites]
-    do_it(service, state, sites, configure_mqtt=(not flags.noconfig), remove_sensors=flags.remove)
+    do_it(service, state, sites, configure_mqtt=(not flags.noconfig), remove_sensors=flags.remove, add_7_day=flags.add7)
 
     with open(flags.config, 'w') as configfile: state.write(configfile)
 
